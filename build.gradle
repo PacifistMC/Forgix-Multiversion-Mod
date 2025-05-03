@@ -1,0 +1,13 @@
+plugins {
+    // see https://projects.neoforged.net/neoforged/moddevgradle for new versions
+    id 'net.neoforged.moddev' version '0.1.110' apply false
+    id 'xyz.wagyourtail.jvmdowngrader' version '1.3.0-SNAPSHOT'
+    id 'io.github.pacifistmc.forgix' version "1.3.4"
+    id 'java'
+}
+
+forgix {
+    neoforge()
+    forge()
+    merge("forge_1_16")
+}
