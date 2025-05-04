@@ -45,18 +45,18 @@ public class ForgeMultiversionLocator extends AbstractModProvider implements IDe
     // Code copied from forg themselves 😎 (copied as I don't want to rely on forge too much)
     // It's from JarInJarDependencyLocator
 
+    @SuppressWarnings("resource") // Don't close the file system as it's used somewhere else internally by forg
     protected Optional<IModFile> loadModFileFrom(IModFile file, String path) {
         try {
             Path pathInModFile = file.findResource(path);
             URI filePathUri = new URI("jij:" + (pathInModFile.toAbsolutePath().toUri().getRawSchemeSpecificPart())).normalize();
-            try (FileSystem zipFS = FileSystems.newFileSystem(filePathUri, ImmutableMap.of("packagePath", pathInModFile))) {
-                IModFile.Type parentType = file.getType();
-                String modType = switch (parentType) {
-                    case LIBRARY, LANGPROVIDER -> IModFile.Type.LIBRARY.name();
-                    default -> IModFile.Type.GAMELIBRARY.name();
-                };
-                return Optional.of(createMod(zipFS.getPath("/"), false, modType).file());
-            }
+            FileSystem zipFS = FileSystems.newFileSystem(filePathUri, ImmutableMap.of("packagePath", pathInModFile));
+            IModFile.Type parentType = file.getType();
+            String modType = switch (parentType) {
+                case LIBRARY, LANGPROVIDER -> IModFile.Type.LIBRARY.name();
+                default -> IModFile.Type.GAMELIBRARY.name();
+            };
+            return Optional.of(createMod(zipFS.getPath("/"), false, modType).file());
         } catch (Exception e) {
             LOGGER.error("Failed to load mod file {} from {}", path, file.getFileName());
             var exception = new ModFileLoadingException("Failed to load mod file " + file.getFileName());

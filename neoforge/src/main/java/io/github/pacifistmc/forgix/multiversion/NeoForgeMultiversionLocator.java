@@ -41,16 +41,16 @@ public class NeoForgeMultiversionLocator implements IDependencyLocator {
     // Code copied from forg themselves 😎 (copied as I don't want to rely on forge too much)
     // It's from JarInJarDependencyLocator
 
+    @SuppressWarnings("resource") // Don't close the file system as it's used somewhere else internally by forg
     protected Optional<IModFile> loadModFileFrom(IModFile file, String path, IDiscoveryPipeline pipeline) {
         try {
             var pathInModFile = file.findResource(path);
             var filePathUri = new URI("jij:" + (pathInModFile.toAbsolutePath().toUri().getRawSchemeSpecificPart())).normalize();
             var outerFsArgs = ImmutableMap.of("packagePath", pathInModFile);
-            try (var zipFS = FileSystems.newFileSystem(filePathUri, outerFsArgs)) {
-                var jar = JarContents.of(zipFS.getPath("/"));
-                var providerResult = pipeline.readModFile(jar, ModFileDiscoveryAttributes.DEFAULT.withParent(file));
-                return Optional.ofNullable(providerResult);
-            }
+            var zipFS = FileSystems.newFileSystem(filePathUri, outerFsArgs);
+            var jar = JarContents.of(zipFS.getPath("/"));
+            var providerResult = pipeline.readModFile(jar, ModFileDiscoveryAttributes.DEFAULT.withParent(file));
+            return Optional.ofNullable(providerResult);
         } catch (Exception e) {
             LOGGER.error("Failed to load mod file {} from {}", path, file.getFileName());
             RuntimeException exception = new ModFileLoadingException("Failed to load mod file " + file.getFileName());
