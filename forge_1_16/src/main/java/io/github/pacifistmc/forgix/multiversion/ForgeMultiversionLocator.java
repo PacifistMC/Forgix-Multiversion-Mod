@@ -40,31 +40,12 @@ public class ForgeMultiversionLocator extends AbstractJarFileLocator {
             // Create a valid filename from the path
             Path outputJarPath = tempDir.resolve(UUID.randomUUID() + "-" + new File(path).getName());
 
-            extractNestedJar(path, outputJarPath);
+            Forgix.extractNestedJar(path, outputJarPath);
             var modFile = new ModFile(outputJarPath, this, ModFileParser::modsTomlParser);
             modJars.put(modFile, createFileSystem(modFile));
             return List.of(modFile);
         } catch (IOException e) {
             throw new RuntimeException("Failed to scan mods", e);
-        }
-    }
-
-    public void extractNestedJar(String pathInJar, Path outputJarPath) {
-        try {
-            if (outputJarPath == null) throw new IllegalArgumentException("Output path cannot be null");
-            
-            // Ensure parent directory exists
-            Path parent = outputJarPath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            
-            try (var inputStream = ForgeMultiversionLocator.class.getResourceAsStream("/" + pathInJar)) {
-                if (inputStream == null) throw new RuntimeException("Could not find " + pathInJar + " in jar");
-                Files.copy(inputStream, outputJarPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to extract jar: " + pathInJar + " to " + outputJarPath, e);
         }
     }
 
