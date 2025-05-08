@@ -34,13 +34,15 @@ public class ForgeMultiversionLocator extends AbstractJarFileLocator {
     @Override
     public List<IModFile> scanMods() {
         try (var inputStream = ForgeMultiversionLocator.class.getResourceAsStream("/" + Forgix.MULTI_VERSION_LOCATION)) {
-            String path = Forgix.getPathForVersion(minecraftVersion, inputStream);
-            if (path == null) return List.of();
+            var forgix = Forgix.getForgixVersionJson(inputStream);
+            if (forgix == null) return List.of();
+            var versionPath = forgix.getPathForVersion(minecraftVersion);
+            if (versionPath == null) return List.of();
 
             // Create a valid filename from the path
-            Path outputJarPath = tempDir.resolve(UUID.randomUUID() + "-" + new File(path).getName());
+            Path outputJarPath = tempDir.resolve(UUID.randomUUID() + "-" + new File(versionPath).getName());
 
-            Forgix.extractNestedJar(path, outputJarPath);
+            Forgix.extractNestedJar(versionPath, forgix.getSharedLibrary(), outputJarPath);
             var modFile = new ModFile(outputJarPath, this, ModFileParser::modsTomlParser);
             modJars.put(modFile, createFileSystem(modFile));
             return List.of(modFile);

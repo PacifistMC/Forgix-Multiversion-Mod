@@ -7,23 +7,35 @@ package io.github.pacifistmc.forgix.multiversion.versioning;
 //    "[1.16.2,)": "META-INF/forgix/multiversion/example.jar",
 //    "[1.16.5,)": "META-INF/forgix/multiversion/example2.jar"
 //  }
+//  "sharedLibrary": "META-INF/forgix/multiversion/shared.multiversion.jar"
 //}
 //```
 
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ForgixVersionJson {
     private final Map<String, String> versions;
+    private String sharedLibrary;
 
     public ForgixVersionJson() {
         this.versions = new HashMap<>();
+        this.sharedLibrary = null;
     }
 
     public Map<String, String> getVersions() {
         return versions;
+    }
+
+    public String getSharedLibrary() {
+        return sharedLibrary;
+    }
+
+    public void setSharedLibrary(String sharedLibrary) {
+        this.sharedLibrary = sharedLibrary;
     }
 
     /**

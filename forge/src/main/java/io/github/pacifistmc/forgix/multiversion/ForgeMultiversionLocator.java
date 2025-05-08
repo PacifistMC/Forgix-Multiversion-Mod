@@ -4,9 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.mojang.logging.LogUtils;
 import cpw.mods.jarhandling.SecureJar;
 import net.minecraftforge.fml.loading.FMLLoader;
-import net.minecraftforge.fml.loading.moddiscovery.AbstractModProvider;
-import net.minecraftforge.fml.loading.moddiscovery.ModFile;
-import net.minecraftforge.fml.loading.moddiscovery.ModFileParser;
+import net.minecraftforge.fml.loading.moddiscovery.*;
 import net.minecraftforge.forgespi.locating.IDependencyLocator;
 import net.minecraftforge.forgespi.locating.IModFile;
 import net.minecraftforge.forgespi.locating.ModFileLoadingException;
@@ -16,6 +14,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,9 +29,11 @@ public class ForgeMultiversionLocator extends AbstractModProvider implements IDe
             IModFile modFile = new ModFile(secureJar, this, ModFileParser::modsTomlParser);
             return loadResourceFromModFile(modFile, Forgix.MULTI_VERSION_LOCATION)
                     .map(inputStream -> {
-                        String path = Forgix.getPathForVersion(minecraftVersion, inputStream);
-                        if (path == null) return List.<IModFile>of();
-                        return loadModFileFrom(modFile, path)
+                        var forgix = Forgix.getForgixVersionJson(inputStream);
+                        if (forgix == null) return List.<IModFile>of();
+                        var versionPath = forgix.getPathForVersion(minecraftVersion);
+                        if (versionPath == null) return List.<IModFile>of();
+                        return loadModFileFrom(modFile, versionPath, forgix.getSharedLibrary())
                                 .map(List::of)
                                 .orElse(List.of());
                     })
@@ -43,22 +44,31 @@ public class ForgeMultiversionLocator extends AbstractModProvider implements IDe
     }
 
     // Code copied from forg themselves 😎 (copied as I don't want to rely on forge too much)
-    // It's from JarInJarDependencyLocator
+    // It's from JarInJarDependencyLocator but modified to fit our needs
 
     @SuppressWarnings("resource") // Don't close the file system as it's used somewhere else internally by forg
-    protected Optional<IModFile> loadModFileFrom(IModFile file, String path) {
+    protected Optional<IModFile> loadModFileFrom(IModFile file, String versionPath, String sharedLibraryPath) {
         try {
-            Path pathInModFile = file.findResource(path);
-            URI filePathUri = new URI("jij:" + (pathInModFile.toAbsolutePath().toUri().getRawSchemeSpecificPart())).normalize();
-            FileSystem zipFS = FileSystems.newFileSystem(filePathUri, ImmutableMap.of("packagePath", pathInModFile));
-            IModFile.Type parentType = file.getType();
-            String modType = switch (parentType) {
-                case LIBRARY, LANGPROVIDER -> IModFile.Type.LIBRARY.name();
-                default -> IModFile.Type.GAMELIBRARY.name();
-            };
-            return Optional.of(createMod(zipFS.getPath("/"), false, modType).file());
+            List<Path> jarPaths = new ArrayList<>();
+
+            var versionPathInModFile = file.findResource(versionPath);
+            var versionZipFS = FileSystems.newFileSystem(
+                    new URI("jij:" + (versionPathInModFile.toAbsolutePath().toUri().getRawSchemeSpecificPart())).normalize(),
+                    ImmutableMap.of("packagePath", versionPathInModFile)
+            );
+            jarPaths.add(versionZipFS.getPath("/"));
+
+            if (sharedLibraryPath != null) {
+                var sharedLibraryPathInModFile = file.findResource(sharedLibraryPath);
+                var sharedLibraryZipFS = FileSystems.newFileSystem(
+                        new URI("jij:" + (sharedLibraryPathInModFile.toAbsolutePath().toUri().getRawSchemeSpecificPart())).normalize(),
+                        ImmutableMap.of("packagePath", sharedLibraryPathInModFile)
+                );
+                jarPaths.add(sharedLibraryZipFS.getPath("/"));
+            }
+            return Optional.of(new ModFile(SecureJar.from(jarPaths.toArray(Path[]::new)), this, ModFileParser::modsTomlParser));
         } catch (Exception e) {
-            LOGGER.error("Failed to load mod file {} from {}", path, file.getFileName());
+            LOGGER.error("Failed to load mod file {} from {}", versionPath, file.getFileName());
             var exception = new ModFileLoadingException("Failed to load mod file " + file.getFileName());
             exception.initCause(e);
             throw exception;
